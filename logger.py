@@ -1,5 +1,4 @@
 import logging
-import os
 from pathlib import Path
 from logging.handlers import RotatingFileHandler
 
@@ -22,14 +21,14 @@ class Logger:
             for handler in self.logger.handlers[:]:
                 self.logger.removeHandler(handler)
             
-            # 创建文件处理器 (5MB 大小，保留 3 个备份)
+            # 创建文件处理器
             log_file = log_dir / 'campus_network.log'
             self.file_handler = RotatingFileHandler(
                 log_file,
-                maxBytes=5*1024*1024,  # 5MB
-                backupCount=3,  # 减少备份数量
+                maxBytes=5*1024*1024,
+                backupCount=3,
                 encoding='utf-8',
-                delay=True  # 延迟创建文件
+                delay=True
             )
             
             # 设置格式
@@ -68,14 +67,6 @@ class Logger:
     def error(self, message):
         """记录错误日志"""
         self.logger.error(message)
-    
-    def warning(self, message):
-        """记录警告日志"""
-        self.logger.warning(message)
-    
-    def debug(self, message):
-        """记录调试日志"""
-        self.logger.debug(message)
 
 # 创建全局日志实例
 logger = Logger() 

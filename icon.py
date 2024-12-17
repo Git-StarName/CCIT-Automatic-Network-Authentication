@@ -8,7 +8,7 @@ def create_heart_icon():
     pixmap.fill(Qt.GlobalColor.transparent)
     
     painter = QPainter(pixmap)
-    painter.setRenderHint(QPainter.RenderHint.Antialiasing, False)  # 关闭抗锯齿以获得像素效果
+    painter.setRenderHint(QPainter.RenderHint.Antialiasing, False)
     
     # 设置红色
     painter.setPen(Qt.PenStyle.NoPen)

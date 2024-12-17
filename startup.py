@@ -26,8 +26,8 @@ def add_to_startup():
             reg.KEY_SET_VALUE
         )
         
-        # 写入注册表
-        reg.SetValueEx(key, "CampusNetwork", 0, reg.REG_SZ, f'"{app_path}"')
+        # 写入注册表，添加 --startup 和 --minimized 参数
+        reg.SetValueEx(key, "CampusNetwork", 0, reg.REG_SZ, f'"{app_path}" --startup --minimized')
         reg.CloseKey(key)
         logger.info("已添加到开机自启动")
         return True

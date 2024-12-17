@@ -1,64 +1,59 @@
-from PyQt6.QtCore import Qt, QPropertyAnimation, QEasingCurve, QTimer
-from PyQt6.QtWidgets import QVBoxLayout, QFrame, QApplication, QLineEdit
-from PyQt6.QtWidgets import QGraphicsDropShadowEffect, QFileDialog
-from PyQt6.QtGui import QPixmap, QPainter, QColor, QPalette
-from qfluentwidgets import (FluentWindow, PushButton, LineEdit, 
-                          MessageBox, InfoBar, InfoBarPosition,
-                          TitleLabel, PrimaryPushButton, 
-                          TransparentPushButton, SmoothScrollArea,
-                          SubtitleLabel, ImageLabel)
+from PyQt6.QtCore import Qt, QTimer
+from PyQt6.QtWidgets import (QVBoxLayout, QFrame, QApplication, QLineEdit,
+                           QSystemTrayIcon, QMenu)
+from PyQt6.QtGui import QColor, QPalette
+from qfluentwidgets import (FluentWindow, LineEdit, MessageBox, InfoBar, 
+                          InfoBarPosition, TitleLabel, PrimaryPushButton,
+                          SubtitleLabel, SmoothScrollArea, SwitchButton,
+                          PushButton)
 from qfluentwidgets import FluentIcon as FIF
-from qfluentwidgets.common.animation import BackgroundAnimationWidget
 from auth import Authenticator
 from config import Config
 from style import apply_style
-from PyQt6.QtWidgets import QSystemTrayIcon, QMenu
 from icon import create_heart_icon
 from startup import add_to_startup, remove_from_startup, check_startup
 import weakref
 import time
+import sys
 
 class MainWindow(FluentWindow):
     def __init__(self):
         super().__init__()
+        # 检查启动参数
+        self.is_startup = '--startup' in sys.argv
+        self.is_minimized = '--minimized' in sys.argv
+        
+        # 初始化基本组件
+        self._init_basic_components()
+        
+        # 初始化其他组件
+        self._init_delayed_components()
+        
+        # 根据启动方式决定显示状态
+        if self.is_startup:
+            # 开机自启动时隐藏窗口，尝试自动登录
+            self.hide()
+            self._try_auto_login()
+        else:
+            # 用户手动启动时显示窗口
+            self.show()
+
+    def _init_basic_components(self):
+        """初始化基本组件"""
         # 初始化认证器和配置
         self.auth = Authenticator()
         self.config = Config()
         
-        # 使用弱引用存储图标
-        self._icon_ref = None
+        # 初始化系统托盘
+        self._init_tray()
         
-        # 检查是否是开机启动
-        import sys
-        self.is_startup = len(sys.argv) > 1 and sys.argv[1] == '--startup'
-        self.config.set_startup_launch(self.is_startup)
-        
-        # 强制使用亮色窗口
-        palette = self.palette()
-        palette.setColor(QPalette.ColorRole.Window, QColor(249, 249, 249))
-        palette.setColor(QPalette.ColorRole.WindowText, QColor(0, 0, 0))
-        self.setPalette(palette)
-        
+        # 设置窗口基本属性
         self.setWindowTitle("校园网认证")
         self.resize(1000, 600)
-        # 禁止调整窗口大小
         self.setFixedSize(1000, 600)
-        # 禁用最大化按钮
-        self.titleBar.maxBtn.setEnabled(False)
-        self.titleBar.maxBtn.hide()
-        
-        # 设置标题栏
-        self.titleBar.raise_()
-        self.titleBar.setFixedHeight(32)
-        self.titleBar.setStyleSheet("""
-            background: rgb(249, 249, 249);
-            border: none;
-        """)
-        
-        # 初始化按钮属性
-        self.login_btn = None
-        self.delete_btn = None
-        
+
+    def _init_delayed_components(self):
+        """延迟初始化的组件"""
         # 初始化界面
         self._init_ui()
         self._load_saved_credentials()
@@ -70,21 +65,15 @@ class MainWindow(FluentWindow):
         # 应用样式
         apply_style(self)
         
-        # 初始化系统托盘
-        self._init_tray()
-        
         # 根据启动方式决定是否显示窗口
         if self.is_startup:
-            # 开机自启动，隐藏窗口并尝试自动登录
             self.hide()
             self._try_auto_login()
         else:
-            # 手动启动，显示窗口
             self.show()
-            # 如果有保存的凭据且开启了自动登录，尝试自动登录
             if self.config.get_auto_login():
                 self._try_auto_login()
-        
+
     def _init_ui(self):
         # 创建主界面
         main_widget = SmoothScrollArea()
@@ -238,7 +227,7 @@ class MainWindow(FluentWindow):
         # 创建垂直布局
         layout = QVBoxLayout(settings_container)
         layout.setAlignment(Qt.AlignmentFlag.AlignTop)
-        layout.setSpacing(15)  # 减小控件间距
+        layout.setSpacing(15)  # 小控件间距
         layout.setContentsMargins(50, 50, 50, 30)
         
         # 添加标题
@@ -308,7 +297,7 @@ class MainWindow(FluentWindow):
         # 添加分隔
         layout.addSpacing(5)
         
-        # 添加日志管理���题
+        # 添加日志管理标题
         log_title = SubtitleLabel('日志管理', self)
         log_title.setFixedHeight(25)
         layout.addWidget(log_title)
@@ -482,8 +471,14 @@ class MainWindow(FluentWindow):
     def _on_tray_activated(self, reason):
         """处理托盘图标点击事件"""
         if reason == QSystemTrayIcon.ActivationReason.Trigger:
-            self.show_window()
-            
+            # 如果窗口隐藏，则显示并激活
+            if not self.isVisible():
+                self.show()
+                self.activateWindow()
+            # 如果窗口已显示，则将其置顶
+            else:
+                self.activateWindow()
+        
     def show_window(self):
         """显示主窗口"""
         self.show()
@@ -503,8 +498,8 @@ class MainWindow(FluentWindow):
         
         if self.auth.check_status():
             self.tray_icon.showMessage(
-                '认证态',
-                '络已认证',
+                '认证状态',
+                '网络已认证',
                 QSystemTrayIcon.MessageIcon.Information,
                 2000
             )
@@ -536,10 +531,6 @@ class MainWindow(FluentWindow):
         
         if username and password and remember:
             # 有保存的凭据
-            # 如果是开机启动，则需要检查自动登录是否开启
-            if self.is_startup and not self.config.get_auto_login():
-                return
-            
             if self.config.get_auto_login():
                 # 尝试认证
                 success = self.auth.login(username, password)
@@ -561,9 +552,8 @@ class MainWindow(FluentWindow):
                         QSystemTrayIcon.MessageIcon.Warning,
                         2000
                     )
-                    # 登录失败且是开机启动时，显示主窗口
-                    if self.is_startup:
-                        self.show()
+                    # 登录失败时显示主窗口
+                    self.show()
         else:
             # 没有保存的凭据，显示主窗口
             self.show()
